@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "prettier": "npx prettier --check pages/ components/",
+    "prettier:fix": "npx prettier --write pages/ components/"
   },
   "dependencies": {
     "@ionio-lang/ionio": "^0.2.2",
@@ -25,6 +27,7 @@
   },
   "devDependencies": {
     "eslint-config-prettier": "^8.5.0",
+    "prettier": "^2.7.1",
     "sass": "^1.56.0"
   }
 }

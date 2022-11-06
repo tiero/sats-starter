@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import Image from "next/image";
 
 interface ProjectCardProps {
   title: string;
@@ -7,9 +7,14 @@ interface ProjectCardProps {
   onContributionClick: (title: string) => void;
 }
 
-export default function ProjectCard({ title, author, description, onContributionClick }: ProjectCardProps) {
+export default function ProjectCard({
+  title,
+  author,
+  description,
+  onContributionClick,
+}: ProjectCardProps) {
   return (
-    <div className="card m-6" style={{ maxWidth: '320px' }}>
+    <div className="card m-6" style={{ maxWidth: "320px" }}>
       <div className="card-image">
         <figure className="image is-4by3">
           <Image
@@ -26,17 +31,17 @@ export default function ProjectCard({ title, author, description, onContribution
           </div>
         </div>
         <div className="content">
-          <p className="subtitle">
-            {description}
-          </p>
+          <p className="subtitle">{description}</p>
         </div>
       </div>
       <footer className="card-footer mt-3">
-        <button className="button is-primary" onClick={() => onContributionClick(title)}>
+        <button
+          className="button is-primary"
+          onClick={() => onContributionClick(title)}
+        >
           Contribute
         </button>
       </footer>
     </div>
-
-  )
+  );
 }
