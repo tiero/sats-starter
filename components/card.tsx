@@ -18,7 +18,9 @@ export default function ProjectCard({
       <div className="card-image">
         <figure className="image is-4by3">
           <Image
-            src="https://bulma.io/images/placeholders/1280x960.png"
+            src="/images/1280x960.png"
+            width={480}
+            height={320}
             alt="Placeholder image"
           />
         </figure>

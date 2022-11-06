@@ -25,7 +25,7 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Sat Starter</title>
+        <title>⚡️ Sats Starter</title>
         <meta
           name="description"
           content="Launch your crowdfunding campaign without intermediaries"
@@ -57,8 +57,8 @@ export default function Home() {
             </div>
             <div className="column">
               <ProjectCard
-                title="👶🏼 new child"
-                description="plx need money"
+                title="🚗 new car"
+                description="plx need new car"
                 author="tiero"
                 onContributionClick={onContributionClick}
               />
