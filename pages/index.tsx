@@ -43,11 +43,8 @@ export default function Home() {
       <section className="section">
         <h1 className="title">Latest projects</h1>
         <div className="container">
-          <div
-            className="columns"
-            style={{ display: "flex", flexDirection: "row" }}
-          >
-            <div className="column">
+          <div className="columns">
+            <div className="column is-3">
               <ProjectCard
                 title="💸 My Project "
                 description="plx need money"
@@ -55,7 +52,7 @@ export default function Home() {
                 onContributionClick={onContributionClick}
               />
             </div>
-            <div className="column">
+            <div className="column is-3">
               <ProjectCard
                 title="🚗 new car"
                 description="plx need new car"

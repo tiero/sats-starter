@@ -14,7 +14,7 @@ export default function ProjectCard({
   onContributionClick,
 }: ProjectCardProps) {
   return (
-    <div className="card m-6" style={{ maxWidth: "320px" }}>
+    <div className="card" style={{ maxWidth: "320px" }}>
       <div className="card-image">
         <figure className="image is-4by3">
           <Image
@@ -36,7 +36,7 @@ export default function ProjectCard({
           <p className="subtitle">{description}</p>
         </div>
       </div>
-      <footer className="card-footer mt-3">
+      <footer className="card-footer">
         <button
           className="button is-primary"
           onClick={() => onContributionClick(title)}

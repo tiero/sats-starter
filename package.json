@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "prettier": "npx prettier --check pages/ components/",
-    "prettier:fix": "npx prettier --write pages/ components/"
+    "prettier": "npx prettier --check pages/ components/ lib/",
+    "prettier:fix": "npx prettier --write pages/ components/ lib/"
   },
   "dependencies": {
     "@ionio-lang/ionio": "^0.2.2",
@@ -16,10 +16,15 @@
     "@types/react": "18.0.25",
     "@types/react-dom": "18.0.8",
     "@vulpemventures/secp256k1-zkp": "^2.1.1",
+    "bitcoin-conversion": "^0.4.0",
+    "bolt11": "^1.4.0",
     "bulma": "^0.9.4",
+    "decimal.js": "^10.4.2",
+    "ecpair": "^2.1.0",
     "eslint": "8.26.0",
     "eslint-config-next": "13.0.2",
     "next": "13.0.2",
+    "next-qrcode": "^2.2.2",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "tiny-secp256k1": "^2.2.1",
