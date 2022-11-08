@@ -1,6 +1,25 @@
 import { MouseEventHandler, useState } from "react";
 import { fiatToSatoshis } from "bitcoin-conversion";
+import {
+  Pset,
+  Creator,
+  Updater,
+  Signer,
+  Finalizer,
+  Extractor,
+  ElementsValue,
+  Transaction,
+  BIP174SigningData,
+  script,
+  networks,
+  witnessStackToScriptWitness,
+} from "liquidjs-lib";
+import { ECPairFactory } from "ecpair";
+import * as ecc from "tiny-secp256k1";
+
 import Payment from "./payment";
+import { Output } from "../lib/constants";
+import { buildDepositContract } from "../lib/contract";
 
 interface ContributionProps {
   title: string;
@@ -28,6 +47,21 @@ const sizeToAmount = {
 };
 
 export default function Contribution({ onCancel, title }: ContributionProps) {
+  //TODO use random key
+  //const privateKey = randomBytes(32);
+  //const keyPair = ECPairFactory(ecc).fromPrivateKey(privateKey);
+
+  const currentNetworkString = "testnet";
+  const network = networks[currentNetworkString];
+
+  const ECPair = ECPairFactory(ecc);
+  const keyPair = ECPair.fromPrivateKey(
+    Buffer.from(
+      "e36451789f29cdd2e4dcd44c2c9f8d7cd8c869b862d2a283c0860b9484b5adef",
+      "hex",
+    ),
+  );
+
   const [sats, setSats] = useState<number>(0);
   const [size, setSize] = useState<Size>(Size.TO_BE_SELECTED);
   const [stage, setStage] = useState<Stage>(Stage.FORM);
@@ -38,6 +72,88 @@ export default function Contribution({ onCancel, title }: ContributionProps) {
     setSize(size);
   };
 
+  const onPaymentSuccesful = async (
+    utxos: Output[],
+    preimage: Buffer,
+    redeemScript: Buffer,
+  ) => {
+    if (utxos.length <= 0) return;
+    const fee = 500;
+    const [utxo] = utxos;
+    const amountMinusFee =
+      ElementsValue.fromBytes(utxo.prevout.value).number - fee;
+
+    // Build contaract
+    const contract = await buildDepositContract(
+      keyPair.publicKey,
+      500000,
+      {
+        startBlock: 598350,
+        endBlock: 598360,
+      },
+      network,
+    );
+
+    const pset = Creator.newPset();
+    const sighashType = Transaction.SIGHASH_ALL;
+
+    const updater = new Updater(pset);
+    updater.addInputs([
+      {
+        txid: utxo.txid,
+        txIndex: utxo.vout,
+        witnessUtxo: utxo.prevout,
+        sighashType,
+      },
+    ]);
+
+    const inputIndex = 0;
+    updater.addInWitnessScript(inputIndex, redeemScript);
+
+    updater.addOutputs([
+      {
+        script: contract.scriptPubKey,
+        asset: network.assetHash,
+        amount: amountMinusFee,
+      },
+      {
+        asset: network.assetHash,
+        amount: fee,
+      },
+    ]);
+
+    const signer = new Signer(pset);
+
+    const inputPreimage = pset.getInputPreimage(inputIndex, sighashType);
+    const signature = script.signature.encode(
+      keyPair.sign(inputPreimage),
+      sighashType,
+    );
+    const partialSig: BIP174SigningData = {
+      partialSig: {
+        pubkey: keyPair.publicKey,
+        signature,
+      },
+    };
+    signer.addSignature(inputIndex, partialSig, Pset.ECDSASigValidator(ecc));
+
+    if (!pset.validateAllSignatures(Pset.ECDSASigValidator(ecc))) {
+      throw new Error("Failed to sign transaction");
+    }
+
+    const finalizer = new Finalizer(pset);
+    finalizer.finalizeInput(inputIndex, (index, pset) => {
+      return {
+        finalScriptWitness: witnessStackToScriptWitness([
+          signature,
+          preimage,
+          redeemScript,
+        ]),
+      };
+    });
+    console.log(Extractor.extract(pset).toHex());
+  };
+
   const renderContent = () => {
     switch (stage) {
       case Stage.FORM:
@@ -45,10 +161,11 @@ export default function Contribution({ onCancel, title }: ContributionProps) {
       case Stage.INVOICE:
         return (
           <Payment
+            publicKey={keyPair.publicKey}
             sats={sats}
-            network="testnet"
+            network={currentNetworkString}
             onFailure={console.error}
-            onSuccess={console.log}
+            onSuccess={onPaymentSuccesful}
           />
         );
       default:

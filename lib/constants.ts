@@ -8,19 +8,13 @@ export interface Outpoint {
 export type Output = Outpoint & {
   prevout: TxOutput;
 };
-export type EsploraUtxo = Outpoint & {
-  txid: string;
-  vout: number;
-  status: {
-    confirmed: boolean;
-    block_height: number;
-    block_hash: string;
-    block_time: number;
-  };
-  valuecommitment: string;
-  assetcommitment: string;
-  noncecommitment: string;
-};
+
+export interface ElectrumUnspent {
+  height: number;
+  tx_hash: string;
+  tx_pos: number;
+  value: number;
+}
 
 export const feeAmount = 500; // fee for regular liquid tx
 export const swapFeeAmount = 500; // fee for Boltz

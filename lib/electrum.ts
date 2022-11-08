@@ -1,25 +1,16 @@
-import { NetworkString, Outpoint, Output } from "./constants";
+import { ElectrumUnspent, Outpoint, Output } from "./constants";
 import { sleep } from "./utils";
 import {
-  ElementsValue,
   crypto,
   address as laddress,
   Transaction,
+  TxOutput,
 } from "liquidjs-lib";
-
-interface PaymentToWatch {
-  address: string;
-  amount: number;
-  assetID: string;
-}
 
 export class ElectrumWS {
   constructor(private wsEndpoint: string) {}
 
-  notifyPayment(
-    { address }: PaymentToWatch,
-    callback: (utxos: Outpoint[]) => void,
-  ): void {
+  notifyPayments(address: string, callback: (utxos: Output[]) => void): void {
     // open web socket
     const ws = new WebSocket(this.wsEndpoint);
 
@@ -41,9 +32,9 @@ export class ElectrumWS {
     };
 
     // wait for payment
+    let unspentByID: Map<number, ElectrumUnspent> = new Map();
+    let utxos: Output[] = [];
     ws.onmessage = async (ev: any) => {
-      console.log(ev);
-
       //skip malformed messages
       if (!ev || !ev.data) return;
 
@@ -60,15 +51,52 @@ export class ElectrumWS {
         );
       }
 
-      // check for get_balance response
+      // check for listunspent response
       if (data.id && data.id === 2) {
         // check for sats amount
-        const unspents = data.result;
+        const unspents: ElectrumUnspent[] = data.result;
         if (Array.isArray(unspents) && unspents.length > 0) {
+          unspents.forEach((unspent, index) => {
+            const id = 3 + index;
+
+            // send tx request
+            ws.send(
+              JSON.stringify({
+                id,
+                method: "blockchain.transaction.get",
+                params: [unspent.tx_hash, false],
+              }),
+            );
+
+            // store the unspent by the JSONRPC id
+            unspentByID.set(id, unspent);
+          });
+        }
+      }
+
+      // check for batch_transaction_get_raw
+      if (data.id && data.id >= 3) {
+        const id = data.id;
+        const unspent = unspentByID.get(id);
+
+        const rawhex = data.result;
+        const tx = Transaction.fromHex(rawhex);
+
+        if (unspent) {
+          const prevout: TxOutput = tx.outs[unspent.tx_pos];
+          utxos.push({
+            txid: unspent.tx_hash,
+            vout: unspent.tx_pos,
+            prevout,
+          });
+        }
+
+        // if we consumed all unspentByID then close the socket connection
+        if (utxos.length === unspentByID.size) {
           // unsubscribe the socket
           ws.send(
             JSON.stringify({
-              id: 3,
+              id: 1,
               method: "blockchain.scripthash.unsubscribe",
               params: [reversedAddressScriptHash],
             }),
@@ -77,8 +105,8 @@ export class ElectrumWS {
           // close socket
           ws.close();
 
-          // notify for succesful payment
-          callback(data.result);
+          // notify for all unspents
+          callback(utxos);
         }
       }
     };
@@ -121,7 +149,6 @@ export class ElectrumHTTP {
   }
 
   async outpointToUtxo(outpoint: Outpoint): Promise<Output> {
-    console.log(outpoint);
     const prevoutHex: string = await this.fetchTxHex(outpoint.txid);
     const prevout = Transaction.fromHex(prevoutHex).outs[outpoint.vout];
     return { ...outpoint, prevout };

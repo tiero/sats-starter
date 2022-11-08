@@ -1,12 +1,10 @@
-import { ECPairFactory } from "ecpair";
-import * as ecc from "tiny-secp256k1";
-import { networks } from "liquidjs-lib";
 import { useEffect, useState } from "react";
 import QRCode from "./qrcode";
 import {
   feeAmount,
   NetworkString,
   electrumURLForNetwork,
+  Output,
 } from "../lib/constants";
 import {
   createReverseSubmarineSwap,
@@ -17,9 +15,10 @@ import { ElectrumWS } from "../lib/electrum";
 import { sleep } from "../lib/utils";
 
 interface PaymentProps {
+  publicKey: Buffer;
   network: NetworkString;
   sats: number;
-  onSuccess: () => void;
+  onSuccess: (utxos: Output[], preimage: Buffer, redeemScript: Buffer) => void;
   onFailure: (err: string) => void;
 }
 
@@ -31,6 +30,7 @@ enum Stage {
 }
 
 export default function Payment({
+  publicKey,
   network,
   sats,
   onSuccess,
@@ -57,36 +57,18 @@ export default function Payment({
         // - it will generate a public key to be used with the Boltz swap
         // - later we will sign the claim transaction with the private key
         // all swaps are stored on storage and available to backup
-
-        //TODO use random key
-        //const privateKey = randomBytes(32);
-        //const keyPair = ECPairFactory(ecc).fromPrivateKey(privateKey);
-
-        const ECPair = ECPairFactory(ecc);
-        const keyPair = ECPair.fromPrivateKey(
-          Buffer.from(
-            "e36451789f29cdd2e4dcd44c2c9f8d7cd8c869b862d2a283c0860b9484b5adef",
-            "hex",
-          ),
-          { network: networks[network] },
-        );
-
         // add the L-BTC sats amount needed for claiming the boltz coin to lock into the covenant
         const onchainAmount = sats + feeAmount;
 
         const boltzSwap: ReverseSwap | undefined =
-          await createReverseSubmarineSwap(
-            keyPair.publicKey,
-            network,
-            onchainAmount,
-          );
+          await createReverseSubmarineSwap(publicKey, network, onchainAmount);
 
         if (!boltzSwap) {
           //TODO save used keys on storage
           throw new Error("Error creating swap");
         }
 
-        const { invoice, lockupAddress } = boltzSwap;
+        const { invoice, lockupAddress, redeemScript, preimage } = boltzSwap;
 
         console.log(lockupAddress);
         setStage(Stage.AWAITING_PAYMENT);
@@ -99,25 +81,17 @@ export default function Payment({
         }, invoiceExpireDate - Date.now());
 
         const electrum = new ElectrumWS(electrumURLForNetwork(network));
-        electrum.notifyPayment(
-          {
-            address: lockupAddress,
-            amount: onchainAmount,
-            assetID: networks[network].assetHash,
-          },
-          (utxos: any) => {
-            console.log(utxos);
 
-            // setStage
-            setStage(Stage.PAID);
+        electrum.notifyPayments(lockupAddress, (utxos: Output[]) => {
+          // setStage
+          setStage(Stage.PAID);
 
-            // onSuccess
-            onSuccess();
+          // onSuccess
+          onSuccess(utxos, preimage, Buffer.from(redeemScript, "hex"));
 
-            // clear-up
-            clearTimeout(invoiceExpirationTimeout);
-          },
-        );
+          // clear-up
+          clearTimeout(invoiceExpirationTimeout);
+        });
       } catch (err: any) {
         // setStage
         setStage(Stage.FAILURE);
@@ -128,7 +102,7 @@ export default function Payment({
     })();
 
     return () => {};
-  }, [network, sats, onFailure, onSuccess]);
+  }, [network, sats, publicKey, onFailure, onSuccess]);
 
   const renderContent = () => {
     switch (stage) {
