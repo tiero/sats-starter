@@ -4,22 +4,22 @@ import ProjectCard from "../components/card";
 import Contribution from "../components/contribution";
 
 export default function Home() {
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState<{title: string; beneficiary: string} | null>(null);
   const [contributionModalIsVisible, setContributionModalAsVisible] =
     useState(false);
 
-  const showModal = (title: string) => {
-    setSelected(title);
+  const showModal = (title: string, beneficiary: string) => {
+    setSelected({title, beneficiary});
     setContributionModalAsVisible(true);
   };
 
   const hideModal = () => {
-    setSelected("");
+    setSelected(null);
     setContributionModalAsVisible(false);
   };
 
-  const onContributionClick = (title: any) => {
-    showModal(title);
+  const onContributionClick = (title: string, beneficiary: string) => {
+    showModal(title, beneficiary);
   };
 
   return (
@@ -49,6 +49,7 @@ export default function Home() {
                 title="💸 My Project "
                 description="plx need money"
                 author="tiero"
+                beneficiary="00143801cbe7007c4ce139ef7a48f492f239f700c315"
                 onContributionClick={onContributionClick}
               />
             </div>
@@ -57,14 +58,15 @@ export default function Home() {
                 title="🚗 new car"
                 description="plx need new car"
                 author="tiero"
+                beneficiary="00143801cbe7007c4ce139ef7a48f492f239f700c315"
                 onContributionClick={onContributionClick}
               />
             </div>
           </div>
         </div>
       </section>
-      {contributionModalIsVisible ? (
-        <Contribution title={selected} onCancel={hideModal} />
+      {contributionModalIsVisible && selected ? (
+        <Contribution title={selected.title} beneficiary={selected.beneficiary} onCancel={hideModal} />
       ) : null}
     </>
   );

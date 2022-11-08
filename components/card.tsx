@@ -3,13 +3,15 @@ import Image from "next/image";
 interface ProjectCardProps {
   title: string;
   author: string;
+  beneficiary: string;
   description: string;
-  onContributionClick: (title: string) => void;
+  onContributionClick: (title: string, beneficiary: string) => void;
 }
 
 export default function ProjectCard({
   title,
   author,
+  beneficiary,
   description,
   onContributionClick,
 }: ProjectCardProps) {
@@ -39,7 +41,7 @@ export default function ProjectCard({
       <footer className="card-footer">
         <button
           className="button is-primary"
-          onClick={() => onContributionClick(title)}
+          onClick={() => onContributionClick(title, beneficiary)}
         >
           Contribute
         </button>

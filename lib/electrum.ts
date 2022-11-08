@@ -8,7 +8,7 @@ import {
 } from "liquidjs-lib";
 
 export class ElectrumWS {
-  constructor(private wsEndpoint: string) {}
+  constructor(private wsEndpoint: string) { }
 
   notifyPayments(address: string, callback: (utxos: Output[]) => void): void {
     // open web socket
@@ -112,32 +112,37 @@ export class ElectrumWS {
     };
   }
 
-  async broadcastTx(rawHex: string): Promise<any> {
-    let data;
-    // broadcast transaction
-    const ws = new WebSocket(this.wsEndpoint);
-    ws.onopen = () => {
-      ws.send(
-        JSON.stringify({
-          id: 1,
-          method: "blockchain.transaction.broadcast",
-          params: [rawHex],
-        }),
-      );
-    };
-    ws.onmessage = (e) => {
-      ws.close();
-      data = JSON.parse(e.data);
-    };
-    while (!data) {
-      await sleep(1000);
-    }
-    return data;
+  async broadcastTx(rawHex: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      // broadcast transaction
+      const ws = new WebSocket(this.wsEndpoint);
+      ws.onopen = () => {
+        ws.send(
+          JSON.stringify({
+            id: 1,
+            method: "blockchain.transaction.broadcast",
+            params: [rawHex],
+          }),
+        );
+      };
+      ws.onmessage = (e) => {
+        ws.close();
+        try {
+          const data = JSON.parse(e.data);
+          resolve(data.result);
+        } catch (err: any) {
+          reject(err);
+        }
+      };
+      ws.onerror = (err: any) => {
+        reject(err);
+      }
+    });
   }
 }
 
 export class ElectrumHTTP {
-  constructor(private httpEndpoint: string) {}
+  constructor(private httpEndpoint: string) { }
 
   async fetchTxHex(txId: string): Promise<string> {
     const res = await fetch(`${this.httpEndpoint}/tx/${txId}/hex`);

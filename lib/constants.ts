@@ -30,7 +30,18 @@ export const electrumURLForNetwork = (network: NetworkString) => {
   }
 };
 
-export const esploraURLForNetwork = (network: NetworkString) => {
+export const esploraUIForNetwork = (network: NetworkString) => {
+  switch (network) {
+    case "regtest":
+      return "http://localhost:5001";
+    case "testnet":
+      return "https://liquid.network/testnet";
+    default:
+      return "https://liquid.network";
+  }
+};
+
+export const esploraAPIForNetwork = (network: NetworkString) => {
   switch (network) {
     case "regtest":
       return "http://localhost:3001";

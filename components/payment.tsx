@@ -43,7 +43,7 @@ export default function Payment({
   const handleCopy = () => {
     navigator.clipboard.writeText(invoice).then(
       () => {
-        setButtonText("✅ Copied");
+        setButtonText("📋 Copied");
         sleep(3000).then(() => setButtonText("Copy"));
       },
       (err) => console.error("Could not copy text: ", err),
@@ -82,9 +82,12 @@ export default function Payment({
 
         const electrum = new ElectrumWS(electrumURLForNetwork(network));
 
-        electrum.notifyPayments(lockupAddress, (utxos: Output[]) => {
+        electrum.notifyPayments(lockupAddress, async (utxos: Output[]) => {
           // setStage
           setStage(Stage.PAID);
+
+          // give time to see the screen transition
+          await sleep(1000);
 
           // onSuccess
           onSuccess(utxos, preimage, Buffer.from(redeemScript, "hex"));
@@ -111,7 +114,8 @@ export default function Payment({
       case Stage.AWAITING_PAYMENT:
         return (
           <>
-            <h1 className="title">Pay by scanning the QR Code</h1>
+            <h1 className="title">Deposit with ⚡️Lightning Network</h1>
+            <p className="subtitle">Awaiting payment...</p>
             <QRCode text={invoice} />
             <p className="has-text-centered mt-4">
               <button onClick={handleCopy} className="button">

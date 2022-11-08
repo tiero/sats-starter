@@ -1,28 +1,25 @@
 import { MouseEventHandler, useState } from "react";
 import { fiatToSatoshis } from "bitcoin-conversion";
 import {
-  Pset,
-  Creator,
-  Updater,
-  Signer,
-  Finalizer,
-  Extractor,
   ElementsValue,
-  Transaction,
-  BIP174SigningData,
-  script,
   networks,
-  witnessStackToScriptWitness,
+  script,
 } from "liquidjs-lib";
 import { ECPairFactory } from "ecpair";
 import * as ecc from "tiny-secp256k1";
 
 import Payment from "./payment";
-import { Output } from "../lib/constants";
+import { electrumURLForNetwork, esploraUIForNetwork, Output } from "../lib/constants";
 import { buildDepositContract } from "../lib/contract";
+import { spendHTLCSwap } from "../lib/transaction";
+import { ElectrumWS } from "../lib/electrum";
+import { sleep } from "../lib/utils";
+import { addProjectToStore } from "../lib/storage";
+import { randomBytes } from "crypto";
 
 interface ContributionProps {
   title: string;
+  beneficiary: string;
   onCancel: MouseEventHandler;
 }
 
@@ -36,7 +33,9 @@ enum Size {
 enum Stage {
   FORM,
   INVOICE,
-  RESULT,
+  FUNDING_CONTRACT,
+  FUNDED,
+  FAILURE,
 }
 
 const sizeToAmount = {
@@ -46,23 +45,16 @@ const sizeToAmount = {
   [Size.LARGE]: 100,
 };
 
-export default function Contribution({ onCancel, title }: ContributionProps) {
-  //TODO use random key
-  //const privateKey = randomBytes(32);
-  //const keyPair = ECPairFactory(ecc).fromPrivateKey(privateKey);
+export default function Contribution({ onCancel, beneficiary, title }: ContributionProps) {
+  const privateKey = randomBytes(32);
+  const keyPair = ECPairFactory(ecc).fromPrivateKey(privateKey);
 
   const currentNetworkString = "testnet";
   const network = networks[currentNetworkString];
 
-  const ECPair = ECPairFactory(ecc);
-  const keyPair = ECPair.fromPrivateKey(
-    Buffer.from(
-      "e36451789f29cdd2e4dcd44c2c9f8d7cd8c869b862d2a283c0860b9484b5adef",
-      "hex",
-    ),
-  );
 
   const [sats, setSats] = useState<number>(0);
+  const [txid, setTxid] = useState<string>('');
   const [size, setSize] = useState<Size>(Size.TO_BE_SELECTED);
   const [stage, setStage] = useState<Stage>(Stage.FORM);
 
@@ -78,6 +70,13 @@ export default function Contribution({ onCancel, title }: ContributionProps) {
     redeemScript: Buffer,
   ) => {
     if (utxos.length <= 0) return;
+
+    // move to next stage
+    setStage(Stage.FUNDING_CONTRACT);
+
+    // give time to see the screen transition
+    await sleep(2000);
+
     const fee = 500;
     const [utxo] = utxos;
     const amountMinusFee =
@@ -86,6 +85,7 @@ export default function Contribution({ onCancel, title }: ContributionProps) {
     // Build contaract
     const contract = await buildDepositContract(
       keyPair.publicKey,
+      Buffer.from(beneficiary, "hex"),
       500000,
       {
         startBlock: 598350,
@@ -94,64 +94,58 @@ export default function Contribution({ onCancel, title }: ContributionProps) {
       network,
     );
 
-    const pset = Creator.newPset();
-    const sighashType = Transaction.SIGHASH_ALL;
-
-    const updater = new Updater(pset);
-    updater.addInputs([
-      {
-        txid: utxo.txid,
-        txIndex: utxo.vout,
-        witnessUtxo: utxo.prevout,
-        sighashType,
-      },
-    ]);
-
-    const inputIndex = 0;
-    updater.addInWitnessScript(inputIndex, redeemScript);
-
-    updater.addOutputs([
-      {
-        script: contract.scriptPubKey,
-        asset: network.assetHash,
-        amount: amountMinusFee,
-      },
-      {
-        asset: network.assetHash,
-        amount: fee,
-      },
-    ]);
-
-    const signer = new Signer(pset);
-
-    const inputPreimage = pset.getInputPreimage(inputIndex, sighashType);
-    const signature = script.signature.encode(
-      keyPair.sign(inputPreimage),
-      sighashType,
-    );
-    const partialSig: BIP174SigningData = {
-      partialSig: {
-        pubkey: keyPair.publicKey,
-        signature,
-      },
-    };
-    signer.addSignature(inputIndex, partialSig, Pset.ECDSASigValidator(ecc));
-
-    if (!pset.validateAllSignatures(Pset.ECDSASigValidator(ecc))) {
-      throw new Error("Failed to sign transaction");
-    }
-
-    const finalizer = new Finalizer(pset);
-    finalizer.finalizeInput(inputIndex, (index, pset) => {
-      return {
-        finalScriptWitness: witnessStackToScriptWitness([
-          signature,
-          preimage,
-          redeemScript,
-        ]),
-      };
+    // spend the HTLC swap to fund the contract
+    const rawHex = spendHTLCSwap({
+      keyPair,
+      utxo,
+      redeemScript,
+      preimage,
+      recipients: [
+        {
+          script: script.compile([
+            script.OPS.OP_RETURN,
+            Buffer.from(`sats-starter|${title}`, "utf-8")
+          ]),
+          asset: network.assetHash,
+          amount: 0,
+        },
+        {
+          script: contract.scriptPubKey,
+          asset: network.assetHash,
+          amount: amountMinusFee,
+        },
+        {
+          asset: network.assetHash,
+          amount: fee,
+        },
+      ]
     });
-    console.log(Extractor.extract(pset).toHex());
+
+    // broadcast transaction
+    try {
+      const electrum = new ElectrumWS(electrumURLForNetwork(currentNetworkString));
+      const txid = await electrum.broadcastTx(rawHex);
+
+      // setStage to success
+      setStage(Stage.FUNDED);
+      setTxid(txid);
+
+      // save to storage
+      addProjectToStore({
+        title,
+        contribution: {
+          sats,
+          txid,
+          privateKey: keyPair.privateKey!.toString('hex')
+        }
+      });
+    } catch (err: any) {
+      // setStage to failure
+      setStage(Stage.FAILURE);
+
+      console.error(err);
+      console.debug(rawHex);
+    }
   };
 
   const renderContent = () => {
@@ -167,6 +161,27 @@ export default function Contribution({ onCancel, title }: ContributionProps) {
             onFailure={console.error}
             onSuccess={onPaymentSuccesful}
           />
+        );
+      case Stage.FUNDING_CONTRACT:
+        return (
+          <div className="container">
+            <div className="content has-text-centered">
+              <p className="subtitle">🚜 Funding contract...</p>
+            </div>
+          </div>
+        )
+      case Stage.FUNDED:
+        return (
+          <div className="container">
+            <div className="content has-text-centered">
+              <p className="subtitle">🎉 Contract has been funded!</p>
+              <p className="subtitle is-6">🔭 Open in <a href={`${esploraUIForNetwork(currentNetworkString)}/tx/${txid}`} target="_blank">explorer</a></p>
+            </div>
+          </div>
+        )
+      case Stage.FAILURE:
+        return (
+          <p className="subtitle">😑 Something went wrong. Try again later</p>
         );
       default:
         return <></>;
