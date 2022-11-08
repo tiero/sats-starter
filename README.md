@@ -1,6 +1,9 @@
 # ⚡️ Sats Starter
 Launch your crowdfunding campaign without intermediaries 
 
+
+https://user-images.githubusercontent.com/3596602/200698289-db3068d9-ba63-4989-a29c-52f8a70e4ed5.mp4
+
 ## Why?
 
 - Beneficiary does not need to setup a LN node to receive
