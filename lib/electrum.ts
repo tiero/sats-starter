@@ -1,7 +1,7 @@
-import { EsploraUtxo, NetworkString, Outpoint, Output } from "./constants";
+import { NetworkString, Outpoint, Output } from "./constants";
 import { sleep } from "./utils";
 import {
-  networks,
+  ElementsValue,
   crypto,
   address as laddress,
   Transaction,
@@ -14,7 +14,7 @@ interface PaymentToWatch {
 }
 
 export class ElectrumWS {
-  constructor(private wsEndpoint: string, private httpEndpoint: string) {}
+  constructor(private wsEndpoint: string) {}
 
   notifyPayment(
     { address }: PaymentToWatch,
@@ -41,24 +41,45 @@ export class ElectrumWS {
     };
 
     // wait for payment
-    ws.onmessage = async () => {
-      const http = new ElectrumHTTP(this.httpEndpoint);
-      const utxos = await http.fetchUtxos(address);
-      // payment has arrived
-      if (utxos.length > 0) {
-        // unsubscribe to event
+    ws.onmessage = async (ev: any) => {
+      console.log(ev);
+
+      //skip malformed messages
+      if (!ev || !ev.data) return;
+
+      const data = JSON.parse(ev.data);
+
+      // check for subscribe RPC notification
+      if (data.method && data.method === "blockchain.scripthash.subscribe") {
         ws.send(
           JSON.stringify({
-            id: 1,
-            method: "blockchain.scripthash.unsubscribe",
+            id: 2,
+            method: "blockchain.scripthash.listunspent",
             params: [reversedAddressScriptHash],
           }),
         );
-        // close socket
-        ws.close();
+      }
 
-        // notify for succesful payment
-        callback(utxos);
+      // check for get_balance response
+      if (data.id && data.id === 2) {
+        // check for sats amount
+        const unspents = data.result;
+        if (Array.isArray(unspents) && unspents.length > 0) {
+          // unsubscribe the socket
+          ws.send(
+            JSON.stringify({
+              id: 3,
+              method: "blockchain.scripthash.unsubscribe",
+              params: [reversedAddressScriptHash],
+            }),
+          );
+
+          // close socket
+          ws.close();
+
+          // notify for succesful payment
+          callback(data.result);
+        }
       }
     };
   }
@@ -88,10 +109,10 @@ export class ElectrumWS {
 }
 
 export class ElectrumHTTP {
-  constructor(private baseURL: string) {}
+  constructor(private httpEndpoint: string) {}
 
   async fetchTxHex(txId: string): Promise<string> {
-    const res = await fetch(`${this.baseURL}/tx/${txId}/hex`);
+    const res = await fetch(`${this.httpEndpoint}/tx/${txId}/hex`);
     if (!res.ok) {
       const errorMessage = await res.text();
       throw new Error(`${res.statusText}: ${errorMessage}`);
@@ -100,22 +121,22 @@ export class ElectrumHTTP {
   }
 
   async outpointToUtxo(outpoint: Outpoint): Promise<Output> {
+    console.log(outpoint);
     const prevoutHex: string = await this.fetchTxHex(outpoint.txid);
     const prevout = Transaction.fromHex(prevoutHex).outs[outpoint.vout];
     return { ...outpoint, prevout };
   }
 
   async fetchUtxos(address: string): Promise<Output[]> {
-    const url = `${this.baseURL}/address/${address}/utxo`;
+    const url = `${this.httpEndpoint}/address/${address}/utxo`;
 
-    let esploraUtxos: EsploraUtxo[];
     try {
       const res = await fetch(url);
       if (!res.ok) {
         const errorMessage = await res.text();
         throw new Error(`${res.statusText}: ${errorMessage}`);
       }
-      esploraUtxos = await res.json();
+      const esploraUtxos = await res.json();
 
       return Promise.all(esploraUtxos.map(this.outpointToUtxo));
     } catch (err: any) {
@@ -123,25 +144,3 @@ export class ElectrumHTTP {
     }
   }
 }
-
-export const electrumURL = (network: NetworkString) => {
-  switch (network) {
-    case "regtest":
-      return "http://localhost:3001"; // TODO
-    case "testnet":
-      return "wss://esplora.blockstream.com/liquidtestnet/electrum-websocket/api";
-    default:
-      return "wss://esplora.blockstream.com/liquid/electrum-websocket/api";
-  }
-};
-
-export const esploraURL = (network: NetworkString) => {
-  switch (network) {
-    case "regtest":
-      return "http://localhost:3001";
-    case "testnet":
-      return "https://liquid.network/liquidtestnet/api";
-    default:
-      return "https://liquid.network/api";
-  }
-};

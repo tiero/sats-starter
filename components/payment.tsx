@@ -1,16 +1,19 @@
-import { randomBytes } from "crypto";
 import { ECPairFactory } from "ecpair";
 import * as ecc from "tiny-secp256k1";
-import { crypto, address, networks } from "liquidjs-lib";
+import { networks } from "liquidjs-lib";
 import { useEffect, useState } from "react";
 import QRCode from "./qrcode";
-import { feeAmount, NetworkString, Outpoint } from "../lib/constants";
+import {
+  feeAmount,
+  NetworkString,
+  electrumURLForNetwork,
+} from "../lib/constants";
 import {
   createReverseSubmarineSwap,
   getInvoiceExpireDate,
   ReverseSwap,
 } from "../lib/swaps/submarineSwap";
-import { ElectrumWS, electrumURL, esploraURL } from "../lib/electrum";
+import { ElectrumWS } from "../lib/electrum";
 import { sleep } from "../lib/utils";
 
 interface PaymentProps {
@@ -86,8 +89,8 @@ export default function Payment({
         const { invoice, lockupAddress } = boltzSwap;
 
         console.log(lockupAddress);
-        setInvoice(invoice);
         setStage(Stage.AWAITING_PAYMENT);
+        setInvoice(invoice);
 
         // prepare timeout handler
         const invoiceExpireDate = Number(getInvoiceExpireDate(invoice));
@@ -95,10 +98,7 @@ export default function Payment({
           throw new Error("invoice expired");
         }, invoiceExpireDate - Date.now());
 
-        const electrum = new ElectrumWS(
-          electrumURL(network),
-          esploraURL(network),
-        );
+        const electrum = new ElectrumWS(electrumURLForNetwork(network));
         electrum.notifyPayment(
           {
             address: lockupAddress,
