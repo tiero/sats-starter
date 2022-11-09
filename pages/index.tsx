@@ -2,14 +2,18 @@ import Head from "next/head";
 import { useState } from "react";
 import ProjectCard from "../components/card";
 import Contribution from "../components/contribution";
+import { basePath } from "../next.config";
 
 export default function Home() {
-  const [selected, setSelected] = useState<{title: string; beneficiary: string} | null>(null);
+  const [selected, setSelected] = useState<{
+    title: string;
+    beneficiary: string;
+  } | null>(null);
   const [contributionModalIsVisible, setContributionModalAsVisible] =
     useState(false);
 
   const showModal = (title: string, beneficiary: string) => {
-    setSelected({title, beneficiary});
+    setSelected({ title, beneficiary });
     setContributionModalAsVisible(true);
   };
 
@@ -46,8 +50,29 @@ export default function Home() {
           <div className="columns">
             <div className="column is-3">
               <ProjectCard
-                title="💸 My Project "
+                title="🎸 New guitar"
+                description="want to become a rockstar"
+                imageSrc={`${basePath}/images/guitar.jpg`}
+                author="alice"
+                beneficiary="00143801cbe7007c4ce139ef7a48f492f239f700c315"
+                onContributionClick={onContributionClick}
+              />
+            </div>
+            <div className="column is-3">
+              <ProjectCard
+                title="💸 My Project"
                 description="plx need money"
+                author="tiero"
+                beneficiary="00143801cbe7007c4ce139ef7a48f492f239f700c315"
+                imageSrc={`${basePath}/images/project.jpg`}
+                onContributionClick={onContributionClick}
+              />
+            </div>
+            <div className="column is-3">
+              <ProjectCard
+                title="🚗 New car"
+                description="plx need new car"
+                imageSrc={`${basePath}/images/car.jpg`}
                 author="tiero"
                 beneficiary="00143801cbe7007c4ce139ef7a48f492f239f700c315"
                 onContributionClick={onContributionClick}
@@ -55,9 +80,10 @@ export default function Home() {
             </div>
             <div className="column is-3">
               <ProjectCard
-                title="🚗 new car"
-                description="plx need new car"
-                author="tiero"
+                title="🚀 To the moon"
+                description="I want to go to the moon"
+                imageSrc={`${basePath}/images/moon.jpg`}
+                author="bob"
                 beneficiary="00143801cbe7007c4ce139ef7a48f492f239f700c315"
                 onContributionClick={onContributionClick}
               />
@@ -66,7 +92,11 @@ export default function Home() {
         </div>
       </section>
       {contributionModalIsVisible && selected ? (
-        <Contribution title={selected.title} beneficiary={selected.beneficiary} onCancel={hideModal} />
+        <Contribution
+          title={selected.title}
+          beneficiary={selected.beneficiary}
+          onCancel={hideModal}
+        />
       ) : null}
     </>
   );

@@ -1,15 +1,15 @@
 import { MouseEventHandler, useState } from "react";
 import { fiatToSatoshis } from "bitcoin-conversion";
-import {
-  ElementsValue,
-  networks,
-  script,
-} from "liquidjs-lib";
+import { ElementsValue, networks, script } from "liquidjs-lib";
 import { ECPairFactory } from "ecpair";
 import * as ecc from "tiny-secp256k1";
 
 import Payment from "./payment";
-import { electrumURLForNetwork, esploraUIForNetwork, Output } from "../lib/constants";
+import {
+  electrumURLForNetwork,
+  esploraUIForNetwork,
+  Output,
+} from "../lib/constants";
 import { buildDepositContract } from "../lib/contract";
 import { spendHTLCSwap } from "../lib/transaction";
 import { ElectrumWS } from "../lib/electrum";
@@ -45,16 +45,19 @@ const sizeToAmount = {
   [Size.LARGE]: 100,
 };
 
-export default function Contribution({ onCancel, beneficiary, title }: ContributionProps) {
+export default function Contribution({
+  onCancel,
+  beneficiary,
+  title,
+}: ContributionProps) {
   const privateKey = randomBytes(32);
   const keyPair = ECPairFactory(ecc).fromPrivateKey(privateKey);
 
   const currentNetworkString = "testnet";
   const network = networks[currentNetworkString];
 
-
   const [sats, setSats] = useState<number>(0);
-  const [txid, setTxid] = useState<string>('');
+  const [txid, setTxid] = useState<string>("");
   const [size, setSize] = useState<Size>(Size.TO_BE_SELECTED);
   const [stage, setStage] = useState<Stage>(Stage.FORM);
 
@@ -104,7 +107,7 @@ export default function Contribution({ onCancel, beneficiary, title }: Contribut
         {
           script: script.compile([
             script.OPS.OP_RETURN,
-            Buffer.from(`sats-starter|${title}`, "utf-8")
+            Buffer.from(`sats-starter|${title}`, "utf-8"),
           ]),
           asset: network.assetHash,
           amount: 0,
@@ -118,12 +121,14 @@ export default function Contribution({ onCancel, beneficiary, title }: Contribut
           asset: network.assetHash,
           amount: fee,
         },
-      ]
+      ],
     });
 
     // broadcast transaction
     try {
-      const electrum = new ElectrumWS(electrumURLForNetwork(currentNetworkString));
+      const electrum = new ElectrumWS(
+        electrumURLForNetwork(currentNetworkString),
+      );
       const txid = await electrum.broadcastTx(rawHex);
 
       // setStage to success
@@ -136,8 +141,8 @@ export default function Contribution({ onCancel, beneficiary, title }: Contribut
         contribution: {
           sats,
           txid,
-          privateKey: keyPair.privateKey!.toString('hex')
-        }
+          privateKey: keyPair.privateKey!.toString("hex"),
+        },
       });
     } catch (err: any) {
       // setStage to failure
@@ -169,16 +174,27 @@ export default function Contribution({ onCancel, beneficiary, title }: Contribut
               <p className="subtitle">🚜 Funding contract...</p>
             </div>
           </div>
-        )
+        );
       case Stage.FUNDED:
         return (
           <div className="container">
             <div className="content has-text-centered">
               <p className="subtitle">🎉 Contract has been funded!</p>
-              <p className="subtitle is-6">🔭 Open in <a href={`${esploraUIForNetwork(currentNetworkString)}/tx/${txid}`} target="_blank" rel="noreferrer">explorer</a></p>
+              <p className="subtitle is-6">
+                🔭 Open in{" "}
+                <a
+                  href={`${esploraUIForNetwork(
+                    currentNetworkString,
+                  )}/tx/${txid}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  explorer
+                </a>
+              </p>
             </div>
           </div>
-        )
+        );
       case Stage.FAILURE:
         return (
           <p className="subtitle">😑 Something went wrong. Try again later</p>

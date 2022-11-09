@@ -8,7 +8,7 @@ import {
 } from "liquidjs-lib";
 
 export class ElectrumWS {
-  constructor(private wsEndpoint: string) { }
+  constructor(private wsEndpoint: string) {}
 
   notifyPayments(address: string, callback: (utxos: Output[]) => void): void {
     // open web socket
@@ -136,13 +136,13 @@ export class ElectrumWS {
       };
       ws.onerror = (err: any) => {
         reject(err);
-      }
+      };
     });
   }
 }
 
 export class ElectrumHTTP {
-  constructor(private httpEndpoint: string) { }
+  constructor(private httpEndpoint: string) {}
 
   async fetchTxHex(txId: string): Promise<string> {
     const res = await fetch(`${this.httpEndpoint}/tx/${txId}/hex`);

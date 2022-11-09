@@ -16,7 +16,6 @@ export async function buildDepositContract(
 ): Promise<Contract> {
   const zkp = await secp256k1();
 
-
   const contract = new Contract(
     crowdfunding as Artifact,
     [

@@ -5,6 +5,7 @@ interface ProjectCardProps {
   author: string;
   beneficiary: string;
   description: string;
+  imageSrc: string;
   onContributionClick: (title: string, beneficiary: string) => void;
 }
 
@@ -13,6 +14,7 @@ export default function ProjectCard({
   author,
   beneficiary,
   description,
+  imageSrc,
   onContributionClick,
 }: ProjectCardProps) {
   return (
@@ -20,10 +22,10 @@ export default function ProjectCard({
       <div className="card-image">
         <figure className="image is-4by3">
           <Image
-            src="/images/1280x960.png"
+            src={imageSrc}
             width={480}
             height={320}
-            alt="Placeholder image"
+            alt="Random unsplash image"
           />
         </figure>
       </div>
@@ -38,14 +40,16 @@ export default function ProjectCard({
           <p className="subtitle">{description}</p>
         </div>
       </div>
-      <footer className="card-footer">
-        <button
-          className="button is-primary"
-          onClick={() => onContributionClick(title, beneficiary)}
-        >
-          Contribute
-        </button>
-      </footer>
+      <div className="columns is-centered">
+        <div className="column is-half">
+          <button
+            className="button is-primary"
+            onClick={() => onContributionClick(title, beneficiary)}
+          >
+            Contribute
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
