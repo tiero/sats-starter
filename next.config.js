@@ -4,6 +4,9 @@ const nextConfig = {
   basePath: '/sats-starter',
   reactStrictMode: false,
   swcMinify: true,
+  images: {
+    unoptimized: true,
+  },
   sassOptions: {
     includePaths: [path.join(__dirname, 'styles')],
   },
