@@ -1,17 +1,16 @@
 # ⚡️ Sats Starter
 Launch your crowdfunding campaign without intermediaries 
 
-
 https://user-images.githubusercontent.com/3596602/200698289-db3068d9-ba63-4989-a29c-52f8a70e4ed5.mp4
 
-## Why?
+## About
 
-- Beneficiary does not need to setup a LN node to receive
-- The corwdfunding campaign has a cap treshold: if not reached donors can claim it back.
-- Donors can use any Lightning Network wallet to fund
-- Beneficiary can redeem on Liquid: only a private key needed.
+- Donors can fund campaigns using any Lightning Network wallet.
+- To receive, the beneficiary does not need to set up a LN node.
+- The crowdfund campaign has a capped goal; if it is not reached, donors can claim their money back.
+- After the goal is reached, the beneficiary can redeem on Liquid using only a private key. 
 
-## Getting Started
+## Development
 
 First, run the development server:
 
