@@ -175,7 +175,7 @@ export default function Contribution({ onCancel, beneficiary, title }: Contribut
           <div className="container">
             <div className="content has-text-centered">
               <p className="subtitle">🎉 Contract has been funded!</p>
-              <p className="subtitle is-6">🔭 Open in <a href={`${esploraUIForNetwork(currentNetworkString)}/tx/${txid}`} target="_blank">explorer</a></p>
+              <p className="subtitle is-6">🔭 Open in <a href={`${esploraUIForNetwork(currentNetworkString)}/tx/${txid}`} target="_blank" rel="noreferrer">explorer</a></p>
             </div>
           </div>
         )
