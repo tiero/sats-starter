@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const path = require('path');
 const nextConfig = {
-  basePath: '/sats-starter',
+  basePath: '',
   reactStrictMode: false,
   swcMinify: true,
   images: {
