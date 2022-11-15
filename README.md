@@ -1,9 +1,14 @@
 # ⚡️ Sats Starter
 Launch your crowdfunding campaign without intermediaries 
 
-Live (TESTNET) version https://sats-starter.vercel.app
+## Try it now 
+
+Live (TESTNET)  https://sats-starter.vercel.app
 
 Use a Lightning TESTNET wallet or https://htlc.me for convenience
+
+
+## Demo
 
 https://user-images.githubusercontent.com/3596602/200698289-db3068d9-ba63-4989-a29c-52f8a70e4ed5.mp4
 
