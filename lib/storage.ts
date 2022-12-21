@@ -1,18 +1,9 @@
 // swaps
 
+import { Project } from "./interfaces";
+
 export interface Data {
   projects: Project[];
-}
-
-export interface Project {
-  title: string;
-  contribution: Contribution;
-}
-
-export interface Contribution {
-  sats: number;
-  txid: string;
-  privateKey: string;
 }
 
 const initialData = { projects: [] };

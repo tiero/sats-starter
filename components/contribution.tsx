@@ -3,6 +3,7 @@ import { fiatToSatoshis } from "bitcoin-conversion";
 import { ElementsValue, networks, script } from "liquidjs-lib";
 import { ECPairFactory } from "ecpair";
 import * as ecc from "tiny-secp256k1";
+import { saveAs } from 'file-saver'
 
 import Payment from "./payment";
 import {
@@ -10,16 +11,21 @@ import {
   esploraUIForNetwork,
   Output,
 } from "../lib/constants";
-import { buildDepositContract } from "../lib/contract";
 import { spendHTLCSwap } from "../lib/transaction";
 import { ElectrumWS } from "../lib/electrum";
 import { sleep } from "../lib/utils";
 import { addProjectToStore } from "../lib/storage";
 import { randomBytes } from "crypto";
+import secp256k1 from "@vulpemventures/secp256k1-zkp";
+import { Artifact, Contract } from "@ionio-lang/ionio";
+import crowdfunding from "../lib/crowdfunding.json";
 
 interface ContributionProps {
   title: string;
   beneficiary: string;
+  goal: number;
+  endBlock: number;
+  claimBlock: number;
   onCancel: MouseEventHandler;
 }
 
@@ -49,6 +55,9 @@ export default function Contribution({
   onCancel,
   beneficiary,
   title,
+  goal,
+  endBlock,
+  claimBlock,
 }: ContributionProps) {
   const privateKey = randomBytes(32);
   const keyPair = ECPairFactory(ecc).fromPrivateKey(privateKey);
@@ -86,14 +95,40 @@ export default function Contribution({
       ElementsValue.fromBytes(utxo.prevout.value).number - fee;
 
     // Build contaract
+    const contractParams = {
+      endBlock,
+      claimBlock,
+      goal,
+      fundingAsset: network.assetHash,
+      beneficiaryProgram: 
+    }
+
+    const zkp = await secp256k1();
+
+  const contract = new Contract(
+    crowdfunding as Artifact,
+    [
+      endBlock,
+      claimBlock,
+      goal, //200k sats
+      network.assetHash, // L-BTC only
+      beneficiary.subarray(2),
+      donorPublicKey.subarray(1),
+    ],
+    network,
+    {
+      ecc,
+      zkp,
+    },
+  );
+
+  
     const contract = await buildDepositContract(
       keyPair.publicKey,
       Buffer.from(beneficiary, "hex"),
-      500000,
-      {
-        startBlock: 598350,
-        endBlock: 598360,
-      },
+      goal,
+      endBlock,
+      claimBlock,
       network,
     );
 
@@ -135,15 +170,23 @@ export default function Contribution({
       setStage(Stage.FUNDED);
       setTxid(txid);
 
-      // save to storage
-      addProjectToStore({
+      const detailData = {
         title,
         contribution: {
           sats,
-          txid,
-          privateKey: keyPair.privateKey!.toString("hex"),
+          txid
         },
-      });
+        
+      }
+      // save to storage
+      addProjectToStore();
+
+      // download private key
+      const json = JSON.stringify({
+        txid,  privateKey: keyPair.privateKey!.toString("hex")}, null, 2);
+      const blob = new Blob([json], { type: 'application/json' })
+      saveAs(blob, txid);
+      
     } catch (err: any) {
       // setStage to failure
       setStage(Stage.FAILURE);

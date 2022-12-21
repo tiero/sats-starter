@@ -1,7 +1,7 @@
 import { TxOutput } from "liquidjs-lib";
 
 export type NetworkString = "liquid" | "testnet" | "regtest";
-export interface Outpoint {
+export type Outpoint = {
   txid: string;
   vout: number;
 }
@@ -9,7 +9,7 @@ export type Output = Outpoint & {
   prevout: TxOutput;
 };
 
-export interface ElectrumUnspent {
+export type ElectrumUnspent = {
   height: number;
   tx_hash: string;
   tx_pos: number;
