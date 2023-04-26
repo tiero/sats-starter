@@ -1,4 +1,4 @@
-import { ECPairInterface, ECPairFactory } from "ecpair";
+import { ECPairInterface } from "ecpair";
 import * as ecc from "tiny-secp256k1";
 import {
   Pset,

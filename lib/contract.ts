@@ -27,10 +27,7 @@ export async function buildDepositContract(
       donorPublicKey.subarray(1),
     ],
     network,
-    {
-      ecc,
-      zkp,
-    },
+    zkp,
   );
 
   return contract;
