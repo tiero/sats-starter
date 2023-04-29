@@ -3,6 +3,7 @@ import { fiatToSatoshis } from "bitcoin-conversion";
 import { ElementsValue, networks, script } from "liquidjs-lib";
 import { ECPairFactory } from "ecpair";
 import * as ecc from "tiny-secp256k1";
+import secp256k1 from "@vulpemventures/secp256k1-zkp";
 
 import Payment from "./payment";
 import {
@@ -98,7 +99,9 @@ export default function Contribution({
     );
 
     // spend the HTLC swap to fund the contract
+    const zkp = await secp256k1();
     const rawHex = spendHTLCSwap({
+      zkp,
       keyPair,
       utxo,
       redeemScript,

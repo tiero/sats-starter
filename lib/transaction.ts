@@ -1,5 +1,4 @@
 import { ECPairInterface } from "ecpair";
-import * as ecc from "tiny-secp256k1";
 import {
   Pset,
   Creator,
@@ -12,6 +11,7 @@ import {
   BIP174SigningData,
   script,
   witnessStackToScriptWitness,
+  Secp256k1Interface,
 } from "liquidjs-lib";
 import { Output } from "./constants";
 
@@ -21,12 +21,14 @@ export function spendHTLCSwap({
   recipients,
   preimage,
   keyPair,
+  zkp,
 }: {
   utxo: Output;
   recipients: UpdaterOutput[];
   redeemScript: Buffer;
   preimage: Buffer;
   keyPair: ECPairInterface;
+  zkp: Secp256k1Interface;
 }) {
   const pset = Creator.newPset();
   const sighashType = Transaction.SIGHASH_ALL;
@@ -59,9 +61,9 @@ export function spendHTLCSwap({
       signature,
     },
   };
-  signer.addSignature(inputIndex, partialSig, Pset.ECDSASigValidator(ecc));
+  signer.addSignature(inputIndex, partialSig, Pset.ECDSASigValidator(zkp.ecc));
 
-  if (!pset.validateAllSignatures(Pset.ECDSASigValidator(ecc))) {
+  if (!pset.validateAllSignatures(Pset.ECDSASigValidator(zkp.ecc))) {
     throw new Error("Failed to sign transaction");
   }
 
