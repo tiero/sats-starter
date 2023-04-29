@@ -4,16 +4,23 @@ import ProjectCard from "../components/card";
 import Contribution from "../components/contribution";
 import { basePath } from "../next.config";
 
+import { address } from "liquidjs-lib";
+import { projects } from "../config.json";
+
+import { getParamsByScript, getProjectByTitle } from "../lib/storage";
+import { buildDepositContract } from "../lib/contract";
+import { ElectrumWS } from "ws-electrumx-client";
+import { electrumURLForNetwork } from "../lib/constants";
+
+import {Project} from "../lib/types";
+
 export default function Home() {
-  const [selected, setSelected] = useState<{
-    title: string;
-    beneficiary: string;
-  } | null>(null);
+  const [selected, setSelected] = useState<Project | null>(null);
   const [contributionModalIsVisible, setContributionModalAsVisible] =
     useState(false);
 
-  const showModal = (title: string, beneficiary: string) => {
-    setSelected({ title, beneficiary });
+  const showModal = (project: Project) => {
+    setSelected(project);
     setContributionModalAsVisible(true);
   };
 
@@ -22,9 +29,24 @@ export default function Home() {
     setContributionModalAsVisible(false);
   };
 
-  const onContributionClick = (title: string, beneficiary: string) => {
-    showModal(title, beneficiary);
+  const onContributionClick = (project: Project) => {
+    showModal(project);
   };
+
+  const onGoalReached = async (title: string) => {
+    console.log(`Goal reached for ${title}`);
+    const project = getProjectByTitle(title);
+    if (!project) throw new Error("Project not found");
+    const params = getParamsByScript(project.contribution.scriptHex);
+    const { zkp, contract } = await buildDepositContract(params);
+    const electrum = new ElectrumWS(
+      electrumURLForNetwork("testnet"),
+    );
+    const unspents = await electrum.request("blockchain.scripthash.listunspent",);
+
+    //const hex = goalReached(contract,)
+  };
+
 
   return (
     <>
@@ -48,53 +70,25 @@ export default function Home() {
         <h1 className="title">Latest projects</h1>
         <div className="container">
           <div className="columns">
-            <div className="column is-3">
-              <ProjectCard
-                title="🎸 New guitar"
-                description="want to become a rockstar"
-                imageSrc={`${basePath}/images/guitar.jpg`}
-                author="alice"
-                beneficiary="00143801cbe7007c4ce139ef7a48f492f239f700c315"
-                onContributionClick={onContributionClick}
-              />
-            </div>
-            <div className="column is-3">
-              <ProjectCard
-                title="💸 My Project"
-                description="plx need money"
-                author="tiero"
-                beneficiary="00143801cbe7007c4ce139ef7a48f492f239f700c315"
-                imageSrc={`${basePath}/images/project.jpg`}
-                onContributionClick={onContributionClick}
-              />
-            </div>
-            <div className="column is-3">
-              <ProjectCard
-                title="🚗 New car"
-                description="plx need new car"
-                imageSrc={`${basePath}/images/car.jpg`}
-                author="tiero"
-                beneficiary="00143801cbe7007c4ce139ef7a48f492f239f700c315"
-                onContributionClick={onContributionClick}
-              />
-            </div>
-            <div className="column is-3">
-              <ProjectCard
-                title="🚀 To the moon"
-                description="I want to go to the moon"
-                imageSrc={`${basePath}/images/moon.jpg`}
-                author="bob"
-                beneficiary="00143801cbe7007c4ce139ef7a48f492f239f700c315"
-                onContributionClick={onContributionClick}
-              />
-            </div>
+            {
+              projects.map(project => (
+                <div className="column">
+                  <ProjectCard
+                    project={project}
+                    //beneficiary={address.toOutputScript(project.beneficiaryAddress).toString("hex")}
+                    onContributionClick={onContributionClick}
+                    onGoalReached={onGoalReached}
+                  />
+                </div>
+              ))
+            }
           </div>
         </div>
       </section>
       {contributionModalIsVisible && selected ? (
         <Contribution
           title={selected.title}
-          beneficiary={selected.beneficiary}
+          timeframe={timeframe}
           onCancel={hideModal}
         />
       ) : null}

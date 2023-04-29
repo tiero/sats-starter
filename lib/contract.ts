@@ -1,34 +1,24 @@
 import secp256k1 from "@vulpemventures/secp256k1-zkp";
 import * as ecc from "tiny-secp256k1";
-import { Artifact, Contract } from "@ionio-lang/ionio";
-import { networks, payments } from "liquidjs-lib";
+import { Argument, Artifact, Contract } from "@ionio-lang/ionio";
+import { Secp256k1Interface, networks } from "liquidjs-lib";
 import crowdfunding from "./crowdfunding.json";
 
 export async function buildDepositContract(
-  donorPublicKey: Buffer,
-  beneficiaryScriptPubKey: Buffer,
-  satsGoal: number,
-  timeframe: {
-    startBlock: number;
-    endBlock: number;
-  },
-  network: networks.Network,
-): Promise<Contract> {
+  params: {[name: string]: Argument},
+  network: networks.Network = networks.testnet,
+): Promise<{ contract: Contract, zkp: Secp256k1Interface }> {
   const zkp = await secp256k1();
-
+  // re-order as an array of arguments comparing the crowdfunding.contractParams definition and the name of the params object
+  let constructorInputs = [];
+  for (const input of (crowdfunding as Artifact).constructorInputs) {
+    constructorInputs.push(params[input.name]);
+  }
   const contract = new Contract(
     crowdfunding as Artifact,
-    [
-      timeframe.startBlock,
-      timeframe.endBlock,
-      satsGoal, //200k sats
-      network.assetHash, // L-BTC only
-      beneficiaryScriptPubKey.subarray(2),
-      donorPublicKey.subarray(1),
-    ],
+    constructorInputs,
     network,
     zkp,
   );
-
-  return contract;
+  return { contract, zkp };
 }

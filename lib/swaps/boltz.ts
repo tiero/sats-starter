@@ -47,8 +47,10 @@ export const boltzUrl: Record<NetworkString, string> = {
 
 export default class Boltz {
   url: string;
+  stream: EventSource | null;
   constructor(network: NetworkString) {
     this.url = boltzUrl[network];
+    this.stream = null;
   }
 
   createSubmarineSwap = async (
@@ -80,6 +82,21 @@ export default class Boltz {
     };
     return this.callCreateSwap(params);
   };
+
+  subscribeSwapStatus = async (swapId: string, onStatusUpdate: (status: string) => void ) => {
+    this.stream = new EventSource(`${this.url}/streamswapstatus?id=${swapId}`);
+    this.stream.onmessage = function(event: any) {
+      if (!event || !event.data) return;
+      const data = JSON.parse(event.data);
+      if (!data.status) return;
+      onStatusUpdate(data.status);
+    };
+  }
+
+  unssubscribeSwapStatus = async () => {
+    if (!this.stream) return;
+    this.stream.close();
+  }
 
   getPair = async (pair: string) => {
     const data = await this.getApi(`${this.url}/getpairs`);

@@ -10,16 +10,23 @@ import {
   esploraUIForNetwork,
   Output,
 } from "../lib/constants";
-import { buildDepositContract } from "../lib/contract";
+import crowdfunding from "../lib/crowdfunding.json";
 import { spendHTLCSwap } from "../lib/transaction";
-import { ElectrumWS } from "../lib/electrum";
+import { ElectrumWS } from "ws-electrumx-client";
 import { sleep } from "../lib/utils";
-import { addProjectToStore } from "../lib/storage";
+import { addProjectToStore, addScriptToStore } from "../lib/storage";
 import { randomBytes } from "crypto";
+import { Artifact, Contract } from "@ionio-lang/ionio";
+import { buildDepositContract } from "../lib/contract";
 
 interface ContributionProps {
   title: string;
   beneficiary: string;
+  timeframe: {
+    endBlock: number;
+    claimBlock: number;
+  };
+  goal: number;
   onCancel: MouseEventHandler;
 }
 
@@ -49,6 +56,8 @@ export default function Contribution({
   onCancel,
   beneficiary,
   title,
+  timeframe,
+  goal,
 }: ContributionProps) {
   const privateKey = randomBytes(32);
   const keyPair = ECPairFactory(ecc).fromPrivateKey(privateKey);
@@ -68,38 +77,40 @@ export default function Contribution({
   };
 
   const onPaymentSuccesful = async (
-    utxos: Output[],
+    utxo: Output,
     preimage: Buffer,
     redeemScript: Buffer,
   ) => {
-    if (utxos.length <= 0) return;
-
     // move to next stage
     setStage(Stage.FUNDING_CONTRACT);
 
     // give time to see the screen transition
-    await sleep(2000);
+    await sleep(1000);
 
     const fee = 500;
-    const [utxo] = utxos;
     const amountMinusFee =
       ElementsValue.fromBytes(utxo.prevout.value).number - fee;
 
+
+
+    // contract parameters
+    const contractParams = {
+      endBlock: timeframe.endBlock,
+      claimBlock: timeframe.claimBlock,
+      goal: goal,
+      fundingAsset: network.assetHash,
+      beneficiaryProgram: Buffer.from(beneficiary, 'hex').subarray(2),
+      donorPublicKey: keyPair.publicKey.subarray(1),
+    }
+
+
     // Build contaract
-    const contract = await buildDepositContract(
-      keyPair.publicKey,
-      Buffer.from(beneficiary, "hex"),
-      500000,
-      {
-        startBlock: 598350,
-        endBlock: 598360,
-      },
-      network,
-    );
+    const {zkp,contract} = await buildDepositContract(contractParams); 
 
     // spend the HTLC swap to fund the contract
     const rawHex = spendHTLCSwap({
       keyPair,
+      zkp,
       utxo,
       redeemScript,
       preimage,
@@ -129,7 +140,7 @@ export default function Contribution({
       const electrum = new ElectrumWS(
         electrumURLForNetwork(currentNetworkString),
       );
-      const txid = await electrum.broadcastTx(rawHex);
+      const txid = await electrum.request("blockchain.transaction.broadcast", rawHex) as string;
 
       // setStage to success
       setStage(Stage.FUNDED);
@@ -142,8 +153,13 @@ export default function Contribution({
           sats,
           txid,
           privateKey: keyPair.privateKey!.toString("hex"),
+          scriptHex: contract.scriptPubKey.toString("hex"),
         },
       });
+
+      // save script params to be used for claim
+      addScriptToStore(contract.scriptPubKey.toString("hex"), contract.contractParameters);
+
     } catch (err: any) {
       // setStage to failure
       setStage(Stage.FAILURE);

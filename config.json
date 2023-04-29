@@ -1,0 +1,18 @@
+{
+  "projects": [
+    {
+      "title": "🎸 New guitar",
+      "description": "I want to become a rockstar",
+      "author": "tiero",
+      "imagePath": "/images/guitar.jpg",
+      "beneficiaryAddress": "tlq1qqg0cuv7uzwr6l6tlsxnhlvnvpuwedl2wmw2p2rmwjxxe3dv2hfth3wdxwxazwd40txcvrs3q9m99rddlez4555a7ypkcfpzny",
+      "goalInSats": 50000,
+      "timeframe": {
+        "endBlock": 840300,
+        "claimBlock": 840300
+      }
+    }
+  ],
+  "feeAmount":500,
+  "swapFeeAmount": 500
+}

@@ -209,6 +209,21 @@ const validReverseSwapReedemScript = (
   return scriptAssembly.join() === expectedScript.join();
 };
 
+export const notifyWhenInMempoool = async (swapId: string, network: NetworkString, callback: () => void) => {
+  const boltz = new Boltz(network);
+  await boltz.subscribeSwapStatus(swapId, (status) => {
+    switch (status) {
+      case "transaction.mempool":
+      case "transaction.confirmed": 
+      case "invoice.settled":
+        boltz.unssubscribeSwapStatus();
+        callback();
+      default:
+        return;
+    }
+  });
+}
+
 // create reverse submarine swap
 export const createReverseSubmarineSwap = async (
   publicKey: Buffer,

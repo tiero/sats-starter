@@ -10,14 +10,12 @@ export type Output = Outpoint & {
 };
 
 export interface ElectrumUnspent {
+  script(script: any, arg1: string): Buffer;
   height: number;
   tx_hash: string;
   tx_pos: number;
   value: number;
 }
-
-export const feeAmount = 500; // fee for regular liquid tx
-export const swapFeeAmount = 500; // fee for Boltz
 
 export const electrumURLForNetwork = (network: NetworkString) => {
   switch (network) {

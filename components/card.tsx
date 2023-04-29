@@ -1,28 +1,25 @@
 import Image from "next/image";
+import { Project } from "../lib/types";
 
 interface ProjectCardProps {
-  title: string;
-  author: string;
-  beneficiary: string;
-  description: string;
-  imageSrc: string;
-  onContributionClick: (title: string, beneficiary: string) => void;
+  project: Project;
+  onContributionClick: (project: Project) => void;
+  onGoalReached: (title: string) => void;
 }
 
 export default function ProjectCard({
-  title,
-  author,
-  beneficiary,
-  description,
-  imageSrc,
+  project,
   onContributionClick,
+  onGoalReached,
 }: ProjectCardProps) {
+
+  const { author, title, description, imagePath } = project;
   return (
     <div className="card" style={{ maxWidth: "320px" }}>
       <div className="card-image">
         <figure className="image is-4by3">
           <Image
-            src={imageSrc}
+            src={imagePath}
             width={480}
             height={320}
             alt="Random unsplash image"
@@ -40,15 +37,19 @@ export default function ProjectCard({
           <p className="subtitle">{description}</p>
         </div>
       </div>
-      <div className="columns is-centered">
-        <div className="column is-half">
-          <button
-            className="button is-primary"
-            onClick={() => onContributionClick(title, beneficiary)}
-          >
-            Contribute
-          </button>
-        </div>
+      <div className="buttons">
+        <button
+          className="button is-primary"
+          onClick={() => onContributionClick(project)}
+        >
+          Contribute
+        </button>
+        <button
+          className="button is-success"
+          onClick={() => onGoalReached(title)}
+        >
+          Goal reached
+        </button>
       </div>
     </div>
   );

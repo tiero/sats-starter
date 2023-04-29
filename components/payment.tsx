@@ -9,16 +9,27 @@ import {
 import {
   createReverseSubmarineSwap,
   getInvoiceExpireDate,
+  notifyWhenInMempoool,
   ReverseSwap,
 } from "../lib/swaps/submarineSwap";
-import { ElectrumWS } from "../lib/electrum";
 import { sleep } from "../lib/utils";
+import { ElectrumWS } from "ws-electrumx-client";
+import { ElectrumUnspent } from "../lib/constants";
+import * as liquid from "liquidjs-lib";
+
+function scriptHash(address: string) {
+  const reversedAddressScriptHash = liquid.crypto
+    .sha256(liquid.address.toOutputScript(address))
+    .reverse()
+    .toString("hex");
+  return reversedAddressScriptHash;
+}
 
 interface PaymentProps {
   publicKey: Buffer;
   network: NetworkString;
   sats: number;
-  onSuccess: (utxos: Output[], preimage: Buffer, redeemScript: Buffer) => void;
+  onSuccess: (utxo: Output, preimage: Buffer, redeemScript: Buffer) => void;
   onFailure: (err: string) => void;
 }
 
@@ -36,12 +47,13 @@ export default function Payment({
   onSuccess,
   onFailure,
 }: PaymentProps) {
-  const [invoice, setInvoice] = useState<string>("");
+  const [swap, setSwap] = useState<ReverseSwap | null>(null);
   const [stage, setStage] = useState<Stage>(Stage.FETCHING_INVOICE);
   const [buttonText, setButtonText] = useState("Copy");
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(invoice).then(
+    if (!swap) return;
+    navigator.clipboard.writeText(swap.invoice).then(
       () => {
         setButtonText("📋 Copied");
         sleep(3000).then(() => setButtonText("Copy"));
@@ -49,6 +61,41 @@ export default function Payment({
       (err) => console.error("Could not copy text: ", err),
     );
   };
+
+  const handleSkip = () => {
+    if (!swap) return;
+    proceedToNextStep(swap);
+  };
+
+
+  const proceedToNextStep = async (boltzSwap: ReverseSwap) => {
+    const { lockupAddress, redeemScript, preimage, id } = boltzSwap;
+    
+    // fetch unspents
+    const electrum = new ElectrumWS(electrumURLForNetwork(network));
+    
+    let unspents: ElectrumUnspent[]  = [];
+    while (unspents.length !== 1) {
+      await sleep(1000);
+      unspents = await electrum.request("blockchain.scripthash.listunspent", scriptHash(lockupAddress)) as ElectrumUnspent[];
+    }
+    const [unspent] = unspents;
+
+    const txhex = await electrum.request("blockchain.transaction.get", unspent.tx_hash) as string;
+    const tx = liquid.Transaction.fromHex(txhex);
+    const prevout = tx.outs[unspent.tx_pos];
+    
+    const utxo: Output = {
+      txid: unspent.tx_hash,
+      vout: unspent.tx_pos,
+      prevout,
+    };
+    // onSuccess
+    onSuccess(utxo, preimage, Buffer.from(redeemScript, "hex"));
+
+    // setStage
+    setStage(Stage.PAID);
+  }
 
   useEffect(() => {
     (async () => {
@@ -68,32 +115,23 @@ export default function Payment({
           throw new Error("Error creating swap");
         }
 
-        const { invoice, lockupAddress, redeemScript, preimage } = boltzSwap;
-
-        console.log(lockupAddress);
-        setStage(Stage.AWAITING_PAYMENT);
-        setInvoice(invoice);
-
         // prepare timeout handler
-        const invoiceExpireDate = Number(getInvoiceExpireDate(invoice));
+        const invoiceExpireDate = Number(getInvoiceExpireDate(boltzSwap.invoice));
         const invoiceExpirationTimeout = setTimeout(() => {
           throw new Error("invoice expired");
         }, invoiceExpireDate - Date.now());
 
-        const electrum = new ElectrumWS(electrumURLForNetwork(network));
 
-        electrum.notifyPayments(lockupAddress, async (utxos: Output[]) => {
-          // setStage
-          setStage(Stage.PAID);
+        // update state
+        setSwap(boltzSwap);
+        setStage(Stage.AWAITING_PAYMENT);
 
-          // give time to see the screen transition
-          await sleep(1000);
-
-          // onSuccess
-          onSuccess(utxos, preimage, Buffer.from(redeemScript, "hex"));
-
+        // subscribe to swap status
+        await notifyWhenInMempoool(boltzSwap.id, network, () => {
           // clear-up
           clearTimeout(invoiceExpirationTimeout);
+          // next
+          proceedToNextStep(boltzSwap)
         });
       } catch (err: any) {
         // setStage
@@ -104,10 +142,11 @@ export default function Payment({
       }
     })();
 
-    return () => {};
+    return () => { };
   }, [network, sats, publicKey, onFailure, onSuccess]);
 
   const renderContent = () => {
+    if (!swap) return null;
     switch (stage) {
       case Stage.FETCHING_INVOICE:
         return <p className="subtitle">Loading invoice...</p>;
@@ -116,12 +155,16 @@ export default function Payment({
           <>
             <h1 className="title">Deposit with ⚡️Lightning Network</h1>
             <p className="subtitle">Awaiting payment...</p>
-            <QRCode text={invoice} />
-            <p className="has-text-centered mt-4">
-              <button onClick={handleCopy} className="button">
+            <QRCode text={swap.invoice} />
+            <div className="buttons mt-4 is-centered">
+              <button onClick={handleCopy} className="button is-primary">
                 {buttonText}
               </button>
-            </p>
+              <button onClick={handleSkip} className="button">
+                Skip
+              </button>
+            </div>
+            
           </>
         );
       case Stage.PAID:
